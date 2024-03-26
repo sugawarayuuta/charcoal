@@ -3,6 +3,7 @@ package charcoal_test
 import (
 	"bytes"
 	"os"
+	"strconv"
 	"testing"
 	"unicode/utf8"
 
@@ -63,22 +64,34 @@ func BenchmarkValid(b *testing.B) {
 }
 
 func benchmarkValid(b *testing.B, name string, buf []byte) {
-	b.Run("standard:"+name, func(b *testing.B) {
-		b.SetBytes(int64(len(buf)))
-		for try := 0; try < b.N; try++ {
-			ok := utf8.Valid(buf)
-			if !ok {
-				b.Fatal("!ok")
-			}
+	for i := 0; i <= 7; i++ {
+		name2 := name + "+" + strconv.Itoa(i)
+
+		// Make a copy of buf, but shifted by i bytes to check with buffer start not aligned on int64
+		buf2 := make([]byte, i+len(buf))
+		buf2 = buf2[i:]
+		copy(buf2, buf)
+		if !bytes.Equal(buf2, buf) {
+			b.Fatal("bug!")
 		}
-	})
-	b.Run("charcoal:"+name, func(b *testing.B) {
-		b.SetBytes(int64(len(buf)))
-		for try := 0; try < b.N; try++ {
-			ok := Valid(buf)
-			if !ok {
-				b.Fatal("!ok")
+
+		b.Run("standard:"+name2, func(b *testing.B) {
+			b.SetBytes(int64(len(buf2)))
+			for try := 0; try < b.N; try++ {
+				ok := utf8.Valid(buf2)
+				if !ok {
+					b.Fatal("!ok")
+				}
 			}
-		}
-	})
+		})
+		b.Run("charcoal:"+name2, func(b *testing.B) {
+			b.SetBytes(int64(len(buf2)))
+			for try := 0; try < b.N; try++ {
+				ok := Valid(buf2)
+				if !ok {
+					b.Fatal("!ok")
+				}
+			}
+		})
+	}
 }
